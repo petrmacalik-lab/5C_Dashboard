@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.13 · 2026-07-20 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.15 · 2026-08-05 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -327,10 +327,23 @@ function safeUrl(u) {
 
 // ── Date formatting ──────────────────────────────────────────
 // Format YYYY-MM-DD → "14 May 2026", returns '—' for blank
+// Also handles Excel serial numbers (e.g. 46220.5421 → date)
 function fmtDate(s) {
   if (!s) return '—';
-  const [y,m,d] = s.split('-');
-  if (!y||!m||!d) return s;
+  const str = String(s).trim();
+  if (!str || str === '0') return '—';
+  // Excel serial number: pure number or number with decimal
+  if (/^\d+(\.\d+)?$/.test(str)) {
+    const serial = parseFloat(str);
+    if (serial > 40000 && serial < 60000) { // plausible date range 2009–2064
+      // Excel epoch: Dec 30, 1899 (with Lotus 1-2-3 leap year bug offset)
+      const d = new Date(Math.round((serial - 25569) * 86400000));
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    }
+  }
+  const [y,m,d] = str.split('-');
+  if (!y||!m||!d) return str;
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${parseInt(d,10)} ${MONTHS[parseInt(m,10)-1]} ${y}`;
 }
