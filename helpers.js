@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.15 · 2026-08-05 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.16 · 2026-08-05 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -520,6 +520,8 @@ function gsearchOpen(hit) {
     case 'company': UI.nav('companies',null); setTimeout(()=>openCompanyDrawer(hit.key.replace(/'/g,'__SQ__')),200); break;
     case 'event':   UI.nav('events',null); setTimeout(()=>openEventDrawer(hit.key.replace(/'/g,'__SQ__')),200); break;
     case 'task':    UI.nav('tasks',null); setTimeout(()=>openTaskDrawer(hit.key.replace(/'/g,'__SQ__')),200); break;
+    case 'hr':
+    case 'pool':    UI.nav('hr',null); setTimeout(()=>openHRDrawer(hit.key.replace(/'/g,'__SQ__')),200); break;
   }
 }
 
@@ -562,7 +564,19 @@ function gsearchRender() {
     hits.push({ type:'task', key:r.id, icon:taskTypeIcon(r.type||'Other'), title:r.taskName||r.type||r.id, sub:[r.linkedOpp,r.responsible].filter(Boolean).join(' · '), group:'Tasks' });
   });
 
-  _gsResults = hits.slice(0,40);
+  // HR Candidates (FC_xxx)
+  (DATA_HR||[]).forEach(r => {
+    if (!((r.displayName||r.name||'')+' '+(r.role||'')+' '+(r.competencies||'')+' '+(r.notes||'')).toLowerCase().includes(q)) return;
+    hits.push({ type:'hr', key:r.id, icon:'👤', title:r.displayName||r.name||r.id, sub:[r.role, r.seniority, r.status].filter(Boolean).join(' · '), group:'HR Candidates' });
+  });
+
+  // HR Pool (ST_xxx)
+  (DATA_POOL||[]).forEach(r => {
+    if (!((r.displayName||r.name||'')+' '+(r.role||'')+' '+(r.competencies||'')).toLowerCase().includes(q)) return;
+    hits.push({ type:'pool', key:r.id, icon:'👥', title:r.displayName||r.name||r.id, sub:[r.role, r.seniority, r.status].filter(Boolean).join(' · '), group:'HR Pool' });
+  });
+
+  _gsResults = hits.slice(0,60);
   _gsIdx = _gsResults.length > 0 ? 0 : -1;
 
   if (!_gsResults.length) { out.innerHTML = `<div class="gsearch-empty">No results for "${esc(q)}"</div>`; return; }
