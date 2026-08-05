@@ -1,4 +1,4 @@
-// 5C Dashboard v1.39.17 · 2026-07-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.15 · 2026-08-05 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -142,7 +142,7 @@ function openCompanyDrawer(safeId) {
     ? opps.map(o=>`<div class="linked-opp-item"><span class="linked-opp-link" onclick="openOppFromContact('${esc(o.c+(o.p?' · '+o.p:''))}')">${o.p||o.c}</span>${badge(o.s)}</div>`).join('')
     : '<div style="color:var(--slate2);font-size:.77rem">No opportunities</div>';
   const contList = contacts.length
-    ? contacts.map(c=>{const name=contactDisplayName(c);const stored=((c.firstName||'')+' '+(c.lastName||'')).trim();return `<div class="linked-opp-item"><span class="linked-opp-link" onclick="openContactFromPipeline('${esc(stored)}')">${name}</span><span style="font-size:.7rem;color:var(--slate)">${c.email||''}</span></div>`;}).join('')
+    ? contacts.map(c=>{const name=contactDisplayName(c);const safeId=(c.id||'').replace(/'/g,'__SQ__');return `<div class="linked-opp-item"><span class="linked-opp-link" onclick="UI.nav('contacts',null);setTimeout(()=>openContactDrawer('${safeId}'),150)">${name}</span><span style="font-size:.7rem;color:var(--slate)">${c.email||''}</span></div>`;}).join('')
     : '<div style="color:var(--slate2);font-size:.77rem">No contacts</div>';
 
   const indOpts = INDUSTRIES.map(i=>`<option${co.industry===i?' selected':''}>${i}</option>`).join('');
