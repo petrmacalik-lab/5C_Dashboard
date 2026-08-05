@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.13 · 2026-07-20 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.14 · 2026-07-20 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -84,12 +84,12 @@ const COMP_COLS = {
 // WORKFLOW — allowed status transitions
 // ════════════════════════════════════════════════════════════════
 const FLOW = {
-  Prospect:  ['Pipeline','Prospect','Cancelled'],
-  Pipeline:  ['Bidding','Running','Prospect','Done','Cancelled','Pipeline'],
-  Bidding:   ['Running','Done','Cancelled','Pipeline','Bidding'],
-  Running:   ['Done','Cancelled','Running','Pipeline'],
-  Done:      ['Pipeline','Prospect','Done'],
-  Cancelled: ['Prospect','Pipeline','Cancelled'],
+  Prospect:  ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
+  Pipeline:  ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
+  Bidding:   ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
+  Running:   ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
+  Done:      ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
+  Cancelled: ['Running','Bidding','Pipeline','Prospect','Done','Cancelled'],
 };
 
 // ════════════════════════════════════════════════════════════════
