@@ -1,4 +1,4 @@
-// 5C Dashboard v1.38.0 · 2026-06-19 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.17 · 2026-08-05 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -38,20 +38,22 @@ function renderOwners() {
           <div style="font-size:.72rem;color:rgba(255,255,255,.6);margin-top:2px">Business Development Dashboard · ${new Date().getFullYear()}</div>
         </div>
       </div>
-      <!-- KPI pills -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${[
-          {l:'Total Opps', v:DATA_PIPE.length,      c:'rgba(255,255,255,.15)'},
-          {l:'Running',    v:cnt('Running'),         c:'rgba(44,230,199,.25)'},
-          {l:'Pipeline',   v:cnt('Pipeline'),        c:'rgba(37,99,235,.35)'},
-          {l:'Prospect',   v:cnt('Prospect'),        c:'rgba(217,119,6,.35)'},
-          {l:'Bidding',    v:cnt('Bidding'),         c:'rgba(124,58,237,.35)'},
-          {l:'Done',       v:cnt('Done'),            c:'rgba(255,255,255,.1)'},
-        ].map(({l,v,c})=>`
-          <div style="text-align:center;padding:8px 12px;background:${c};border-radius:10px;border:1px solid rgba(255,255,255,.15);min-width:56px">
-            <div style="font-size:1.2rem;font-weight:700;color:#fff;line-height:1">${v}</div>
-            <div style="font-size:.6rem;color:rgba(255,255,255,.65);margin-top:2px">${l}</div>
-          </div>`).join('')}
+      <!-- Owner name links -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${DATA_OWNERS.map(o => {
+          const name = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
+          const col  = OC[name] || '#64748b';
+          const ini  = name.split(' ').map(w=>w[0]).join('');
+          const sq   = name.replace(/'/g,'__SQ__');
+          const active = DATA_PIPE.filter(r=>r.owner===name&&!['Done','Cancelled'].includes(r.s)).length;
+          if (!active) return '';
+          return `<button onclick="UI.nav('owners',null);setTimeout(()=>document.getElementById('own_${name.replace(/[^a-z0-9]/gi,'_')}')?.scrollIntoView({behavior:'smooth',block:'start'}),200)"
+            style="display:flex;align-items:center;gap:7px;padding:7px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:var(--font)">
+            <span style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex-shrink:0">${ini}</span>
+            <span style="font-size:.78rem;font-weight:600;color:#fff">${name.split(' ')[0]}</span>
+            <span style="font-size:.7rem;color:rgba(255,255,255,.6);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:10px">${active}</span>
+          </button>`;
+        }).join('')}
       </div>
     </div>
   </div>
@@ -96,6 +98,11 @@ function renderOwners() {
     const myComp   = DATA_COMPANIES.filter(c => c.owner===name).sort(coSort);
     const customers    = myComp.filter(c=>c.type==='Customer'||c.type==='Both');
     const partnerCos   = myComp.filter(c=>c.type==='Partnership'||c.type==='Both');
+    const hrCands  = (DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name);
+    const poolCands= (DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name);
+    // Skip owner entirely if no opps, no companies, no HR candidates, no pool
+    if (!rows.length && !myComp.length && !hrCands.length && !poolCands.length) return '';
+
     const ownerId  = 'own_' + name.replace(/[^a-z0-9]/gi,'_');
 
     const FLOW_STEPS = [
@@ -122,7 +129,7 @@ function renderOwners() {
     };
 
     return `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)">
+    <div id="${ownerId}" style="background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)">
 
       <!-- Owner header -->
       <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;background:linear-gradient(135deg,#0f2540 0%,#1a3a5c 100%);cursor:pointer" onclick="UI.nf('',null,'${sq}')">
@@ -218,51 +225,65 @@ function renderOwners() {
           :`<div style="padding:12px;text-align:center;color:var(--slate2);font-size:.8rem;background:#f8fafc;border-radius:8px;border:1px solid var(--border)">No opportunities assigned</div>`}
         </div>
 
-        <!-- ── Companies + Partners ── -->
+        <!-- ── Companies + Partners (merged) ── -->
         ${myComp.length>0?`
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-
-          <!-- Customers -->
-          <div style="background:var(--green-t);border:1px solid var(--green-l);border-radius:10px;padding:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green)">🏢 Customers</div>
-              <span style="background:var(--green);color:#fff;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">${customers.length}</span>
-            </div>
-            ${customers.length>0?`
-            ${customers.slice(0,4).map(c=>compCard(c,'var(--green)','#f0fdf4','var(--green-l)')).join('')}
-            ${customers.length>4?`
-              <div id="${ownerId}_cust_more" style="display:none">
-                ${customers.slice(4).map(c=>compCard(c,'var(--green)','#f0fdf4','var(--green-l)')).join('')}
-              </div>
-              <button onclick="toggleExpand('${ownerId}_cust_more',this)"
-                style="width:100%;padding:4px;border:1px dashed var(--green-l);border-radius:6px;background:transparent;color:var(--green);font-size:.7rem;cursor:pointer;font-family:var(--font)">
-                + ${customers.length-4} more
-              </button>`:''}
-            `:'<div style="font-size:.73rem;color:var(--green);opacity:.6">None assigned</div>'}
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">🏢 Companies & Partners</div>
+            <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--blue-t);color:var(--blue)">${myComp.length}</span>
           </div>
-
-          <!-- Partners -->
-          <div style="background:var(--pink-t);border:1px solid var(--pink-l);border-radius:10px;padding:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--pink)">🤝 Partners</div>
-              <span style="background:var(--pink);color:#fff;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">${partnerCos.length}</span>
-            </div>
-            ${partnerCos.length>0?`
-            ${partnerCos.slice(0,4).map(c=>compCard(c,'var(--pink)','#fdf2f8','var(--pink-l)')).join('')}
-            ${partnerCos.length>4?`
-              <div id="${ownerId}_part_more" style="display:none">
-                ${partnerCos.slice(4).map(c=>compCard(c,'var(--pink)','#fdf2f8','var(--pink-l)')).join('')}
-              </div>
-              <button onclick="toggleExpand('${ownerId}_part_more',this)"
-                style="width:100%;padding:4px;border:1px dashed var(--pink-l);border-radius:6px;background:transparent;color:var(--pink);font-size:.7rem;cursor:pointer;font-family:var(--font)">
-                + ${partnerCos.length-4} more
-              </button>`:''}
-            `:'<div style="font-size:.73rem;color:var(--pink);opacity:.6">None assigned</div>'}
+          <div>
+            ${myComp.slice(0,6).map(c=>compCard(c,'var(--blue)','var(--blue-t)','var(--blue-l)')).join('')}
           </div>
-
+          ${myComp.length>6?`
+            <div id="${ownerId}_co_more" style="display:none">
+              ${myComp.slice(6).map(c=>compCard(c,'var(--blue)','var(--blue-t)','var(--blue-l)')).join('')}
+            </div>
+            <button onclick="toggleExpand('${ownerId}_co_more',this)"
+              style="width:100%;margin-top:5px;padding:4px;border:1px dashed var(--blue-l);border-radius:6px;background:transparent;color:var(--blue);font-size:.7rem;cursor:pointer;font-family:var(--font)">
+              + ${myComp.length-6} more
+            </button>`:''}
         </div>`:''}
 
-      </div>
+        <!-- ── HR Candidates (collapsed) ── -->
+        ${(()=>{
+          const hrCands = (DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name);
+          if(!hrCands.length) return '';
+          const sid = ownerId+'_hr';
+          return `<div>
+            <div onclick="toggleExpandSection('${sid}_body','${sid}_caret')"
+              style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;cursor:pointer">
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">👤 HR Candidates</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--purple-t);color:var(--purple)">${hrCands.length}</span>
+                <span id="${sid}_caret" style="font-size:.7rem;color:var(--slate2)">▾</span>
+              </div>
+            </div>
+            <div id="${sid}_body" style="display:none;margin-top:4px">
+              ${hrCands.map(c=>{const safeId=(c.id||'').replace(/'/g,'__SQ__');return `<div onclick="UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeId}'),150)" style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#fff;border-radius:7px;border:1px solid var(--purple-l);cursor:pointer;margin-bottom:3px" onmouseover="this.style.background='var(--purple-t)'" onmouseout="this.style.background='#fff'"><span style="width:22px;height:22px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span><span style="font-size:.75rem;font-weight:500;color:var(--navy2);flex:1">${c.displayName||c.name}</span><span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--purple-t);color:var(--purple)">${c.status}</span>`:''}</div>`;}).join('')}
+            </div>
+          </div>`;
+        })()}
+
+        <!-- ── HR Pool (collapsed) ── -->
+        ${(()=>{
+          const pool = (DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name);
+          if(!pool.length) return '';
+          const sid = ownerId+'_pool';
+          return `<div>
+            <div onclick="toggleExpandSection('${sid}_body','${sid}_caret')"
+              style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;cursor:pointer">
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">👥 HR Pool</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--amber-t);color:var(--amber)">${pool.length}</span>
+                <span id="${sid}_caret" style="font-size:.7rem;color:var(--slate2)">▾</span>
+              </div>
+            </div>
+            <div id="${sid}_body" style="display:none;margin-top:4px">
+              ${pool.map(c=>{const safeId=(c.id||'').replace(/'/g,'__SQ__');return `<div onclick="UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeId}'),150)" style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#fff;border-radius:7px;border:1px solid var(--amber-l);cursor:pointer;margin-bottom:3px" onmouseover="this.style.background='var(--amber-t)'" onmouseout="this.style.background='#fff'"><span style="width:22px;height:22px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span><span style="font-size:.75rem;font-weight:500;color:var(--navy2);flex:1">${c.displayName||c.name}</span><span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--amber-t);color:var(--amber)">${c.status}</span>`:''}</div>`;}).join('')}
+            </div>
+          </div>`;
+        })()}      </div>
     </div>`;
   }).join('')}`;
 }
@@ -274,4 +295,13 @@ function toggleExpand(id, btn) {
   el.style.display = hidden ? 'block' : 'none';
   const count = btn.textContent.match(/\d+/)?.[0] || '';
   btn.textContent = hidden ? '▲ Show less' : `+ ${count} more`;
+}
+
+function toggleExpandSection(bodyId, caretId) {
+  const body  = document.getElementById(bodyId);
+  const caret = document.getElementById(caretId);
+  if (!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display  = hidden ? 'block' : 'none';
+  if (caret) caret.textContent = hidden ? '▴' : '▾';
 }
