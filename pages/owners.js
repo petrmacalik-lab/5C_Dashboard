@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.18 · 2026-08-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.19 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -47,7 +47,7 @@ function renderOwners() {
           const sq   = name.replace(/'/g,'__SQ__');
           const active = DATA_PIPE.filter(r=>r.owner===name&&!['Done','Cancelled'].includes(r.s)).length;
           if (!active) return '';
-          return `<button onclick="UI.nav('owners',null);setTimeout(()=>document.getElementById('own_${name.replace(/[^a-z0-9]/gi,'_')}')?.scrollIntoView({behavior:'smooth',block:'start'}),200)"
+          return `<button onclick="dashExpandOwner('${name}')"
             style="display:flex;align-items:center;gap:7px;padding:7px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:var(--font)">
             <span style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex-shrink:0">${ini}</span>
             <span style="font-size:.78rem;font-weight:600;color:#fff">${name.split(' ')[0]}</span>
