@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.12 · 2026-07-14 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.18 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -72,8 +72,20 @@ const App = {
         }).catch(e => console.warn('Pool load failed:', e.message));
       }, 1500);
 
-      // Fetch M365 profile photos in background — non-blocking
+      // Preload static owner photos as fallbacks (from repo images/)
+      const STATIC_PHOTOS = {
+        'Viktor Gřešek':  'images/viktor_gresek.jpg',
+        'Václav Malý':    'images/vaclav_maly.jpg',
+        'Marián Vandas':  'images/marian_vandas.jpg',
+        'Petr Macalík':   'images/petr_macalik.jpg',
+      };
       OWNER_PHOTOS = {};
+      DATA_OWNERS.forEach(o => {
+        const name = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
+        if (STATIC_PHOTOS[name]) OWNER_PHOTOS[o.email || name] = STATIC_PHOTOS[name];
+      });
+
+      // Fetch M365 profile photos in background — override static if available
       DATA_OWNERS.forEach(o => {
         if (!o.email) return;
         const safeKey = o.email.replace(/[^a-z0-9]/gi, '_');
