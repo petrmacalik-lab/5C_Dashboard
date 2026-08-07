@@ -22,6 +22,13 @@ function renderOwners() {
   // Build collapsed owner cards
   const OPO = {'Critical':0,'High':1,'Medium':2,'Low':3};
   const OSO = {'Running':0,'Bidding':1,'Pipeline':2,'Prospect':3,'Done':4,'Cancelled':5};
+  const FLOW_STEPS = [
+    {s:'Prospect', col:'var(--amber)', bg:'var(--amber-t)'},
+    {s:'Pipeline', col:'var(--blue)',  bg:'var(--blue-t)'},
+    {s:'Bidding',  col:'var(--purple)',bg:'var(--purple-t)'},
+    {s:'Running',  col:'var(--green)', bg:'var(--green-t)'},
+    {s:'Done',     col:'var(--slate2)',bg:'#f1f5f9'},
+  ];
   const ownerCards = DATA_OWNERS.map(o => {
     const name  = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
     const rows  = DATA_PIPE.filter(r => r.owner === name).sort((a,b)=>{
