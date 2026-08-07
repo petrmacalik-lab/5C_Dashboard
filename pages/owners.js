@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.17 · 2026-08-05 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.18 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -135,7 +135,7 @@ function renderOwners() {
       <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;background:linear-gradient(135deg,#0f2540 0%,#1a3a5c 100%);cursor:pointer" onclick="UI.nf('',null,'${sq}')">
         ${(()=>{
           const safeKey = (o.email||'').replace(/[^a-z0-9]/gi,'_');
-          const photoUrl = o.email && OWNER_PHOTOS[o.email];
+          const photoUrl = OWNER_PHOTOS[o.email] || OWNER_PHOTOS[name];
           const styles = 'width:48px;height:48px;border-radius:50%;flex-shrink:0;border:3px solid rgba(255,255,255,.2);object-fit:cover;cursor:pointer';
           const iniSpan = `<span style="width:48px;height:48px;border-radius:50%;background:${col};display:${photoUrl?'none':'flex'};align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;border:3px solid rgba(255,255,255,.2)">${ini}</span>`;
           const imgTag  = photoUrl
