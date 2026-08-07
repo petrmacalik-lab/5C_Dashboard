@@ -161,8 +161,3 @@ function dashExpandOwner(name) {
     if (card)  { card.scrollIntoView({ behavior:'smooth', block:'start' }); }
   }, 200);
 }
-    if (body) { body.style.display = 'block'; }
-    if (caret) { caret.textContent = '▴'; }
-    if (card)  { card.scrollIntoView({ behavior:'smooth', block:'start' }); }
-  }, 150);
-}
