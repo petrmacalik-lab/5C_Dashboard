@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.20 · 2026-08-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.21 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -60,18 +60,9 @@ function renderOwners() {
       ? `<img id="oav-${safeKey}" src="${photoUrl}" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.2);object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${iniSpan}`
       : `<img id="oav-${safeKey}" src="" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:none">${iniSpan}`;
 
-    // Flow bar (compact)
-    const flowBar = FLOW_STEPS.map(({s,col,bg},i)=>{
-      const n = rows.filter(r=>r.s===s).length;
-      return `<div onclick="event.stopPropagation();UI.nf('${s}',null,'${sq}')"
-        style="flex:1;text-align:center;padding:5px 2px;background:${n>0?bg:'#f8fafc'};cursor:pointer;border-right:${i<FLOW_STEPS.length-1?'1px solid var(--border)':'none'};opacity:${n===0?'0.35':'1'}">
-        <div style="font-size:.95rem;font-weight:800;color:${n>0?col:'var(--slate2)'}">${n}</div>
-        <div style="font-size:.55rem;color:var(--slate)">${s}</div>
-      </div>`;
-    }).join('');
-
-    // Top 5 opps
-    const oppList = rows.filter(r=>!['Done','Cancelled'].includes(r.s)).slice(0,5).map(r=>{
+    // All active opps (no truncation)
+    const activeRows = rows.filter(r=>!['Done','Cancelled'].includes(r.s));
+    const oppList = activeRows.map(r=>{
       const safeOppKey=(r.c+'|||'+r.p).replace(/'/g,'__SQ__');
       return `<div onclick="event.stopPropagation();openPipeDrawer('${safeOppKey}')"
         style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
@@ -81,11 +72,9 @@ function renderOwners() {
         ${prioBadge(r.prio||'Medium')}
       </div>`;
     }).join('');
-    const moreActive = rows.filter(r=>!['Done','Cancelled'].includes(r.s)).length;
-    const moreBtn = moreActive > 5 ? `<div onclick="event.stopPropagation();UI.nf('',null,'${sq}')" style="font-size:.7rem;color:var(--blue);cursor:pointer;text-align:center;padding:3px 0">+ ${moreActive-5} more →</div>` : '';
 
-    // Companies (compact)
-    const coList = myComp.slice(0,4).map(c=>{
+    // All companies (no truncation)
+    const coList = myComp.map(c=>{
       const safeCoId=(c.id||c.name).replace(/'/g,'__SQ__');
       return `<div onclick="event.stopPropagation();openCompanyDrawer('${safeCoId}')"
         style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
@@ -94,7 +83,28 @@ function renderOwners() {
         <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
         ${prioBadge(c.prio||'Medium')}
       </div>`;
-    }).join('') + (myComp.length>4?`<div style="font-size:.7rem;color:var(--blue);cursor:pointer;text-align:center;padding:3px 0" onclick="event.stopPropagation();UI.nav('companies',null)">+ ${myComp.length-4} more →</div>`:'');
+    }).join('');
+
+    // Upcoming events for this owner
+    const today2 = new Date().toISOString().slice(0,10);
+    const upcomingEvts = (DATA_EVENTS||[])
+      .filter(e => e.owner===name && e.dateFrom >= today2 && !['Not Interested','Cancelled'].includes(e.status))
+      .sort((a,b)=>(a.dateFrom||'').localeCompare(b.dateFrom||''))
+      .slice(0,5);
+    const evtList = upcomingEvts.length ? `
+      <div style="margin-top:12px">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">📅 Upcoming Events</div>
+        ${upcomingEvts.map(e=>{
+          const safeEvId=(e.id||'').replace(/'/g,'__SQ__');
+          return `<div onclick="event.stopPropagation();UI.nav('events',null);setTimeout(()=>openEventDrawer('${safeEvId}'),150)"
+            style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+            onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
+            <span style="font-size:.68rem;color:var(--slate2);white-space:nowrap;flex-shrink:0">${fmtDate(e.dateFrom)}</span>
+            <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name||'—'}</span>
+            ${e.place?`<span style="font-size:.65rem;color:var(--slate2)">${e.place}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>` : '';
 
     return `
     <div id="${ownerId}" style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)">
@@ -108,7 +118,7 @@ function renderOwners() {
         </div>
         <!-- Mini flow badges -->
         <div style="display:flex;gap:5px;align-items:center">
-          ${FLOW_STEPS.filter(({s})=>rows.filter(r=>r.s===s).length>0).map(({s,col,bg})=>{
+          ${FLOW_STEPS.filter(({s})=>rows.filter(r=>r.s===s).length>0).map(({s,col})=>{
             const n=rows.filter(r=>r.s===s).length;
             return `<span style="padding:2px 7px;border-radius:10px;font-size:.65rem;font-weight:700;background:rgba(255,255,255,.12);color:#fff">${n} ${s}</span>`;
           }).join('')}
@@ -117,15 +127,14 @@ function renderOwners() {
       </div>
       <!-- Expandable body — hidden by default -->
       <div id="${ownerId}_body" style="display:none">
-        <!-- Flow bar -->
-        <div style="display:flex;border-bottom:1px solid var(--border)">${flowBar}</div>
         <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div>
-            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">⚡ Active Opportunities</div>
-            ${oppList}${moreBtn}
+            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">⚡ Active Opportunities (${activeRows.length})</div>
+            ${activeRows.length ? oppList : '<div style="font-size:.72rem;color:var(--slate2)">None active</div>'}
+            ${evtList}
           </div>
           <div>
-            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">🏢 Companies</div>
+            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">🏢 Companies (${myComp.length})</div>
             ${myComp.length ? coList : '<div style="font-size:.72rem;color:var(--slate2)">None assigned</div>'}
           </div>
         </div>
