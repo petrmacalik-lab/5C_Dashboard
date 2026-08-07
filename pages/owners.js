@@ -20,6 +20,8 @@ function renderOwners() {
   const overdue   = (DATA_TASKS||[]).filter(t => t.status === 'Open' && t.dueDate && t.dueDate < today).length;
 
   // Build collapsed owner cards
+  const OPO = {'Critical':0,'High':1,'Medium':2,'Low':3};
+  const OSO = {'Running':0,'Bidding':1,'Pipeline':2,'Prospect':3,'Done':4,'Cancelled':5};
   const ownerCards = DATA_OWNERS.map(o => {
     const name  = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
     const rows  = DATA_PIPE.filter(r => r.owner === name).sort((a,b)=>{
