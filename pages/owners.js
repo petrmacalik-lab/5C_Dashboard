@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.19 · 2026-08-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.20 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -18,6 +18,111 @@ function renderOwners() {
   const today = new Date().toISOString().slice(0,10);
   const openTasks = (DATA_TASKS||[]).filter(t => t.status === 'Open').length;
   const overdue   = (DATA_TASKS||[]).filter(t => t.status === 'Open' && t.dueDate && t.dueDate < today).length;
+
+  // Build collapsed owner cards
+  const ownerCards = DATA_OWNERS.map(o => {
+    const name  = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
+    const rows  = DATA_PIPE.filter(r => r.owner === name).sort((a,b)=>{
+      const pd=(OPO[a.prio||'Medium']??2)-(OPO[b.prio||'Medium']??2);
+      if(pd!==0)return pd;
+      const sd=(OSO[a.s]??9)-(OSO[b.s]??9);
+      if(sd!==0)return sd;
+      return(a.c||'').localeCompare(b.c||'');
+    });
+    const myComp = DATA_COMPANIES.filter(c => c.owner===name).sort((a,b)=>
+      (OPO[a.prio||'Medium']??2)-(OPO[b.prio||'Medium']??2) || (a.name||'').localeCompare(b.name||''));
+    const hrCands  = (DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name);
+    const poolCands= (DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name);
+
+    if (!rows.length && !myComp.length && !hrCands.length && !poolCands.length) return '';
+
+    const col     = OC[name] || '#64748b';
+    const ini     = name.split(' ').map(w=>w[0]).join('');
+    const sq      = name.replace(/'/g,'__SQ__');
+    const tasks   = DATA_TASKS.filter(t=>t.responsible===name&&t.status==='Open').length;
+    const ovd     = DATA_TASKS.filter(t=>t.responsible===name&&t.status==='Open'&&t.dueDate&&t.dueDate<today).length;
+    const ownerId = 'dow_' + name.replace(/[^a-z0-9]/gi,'_');
+
+    // Photo
+    const photoUrl = OWNER_PHOTOS[o.email] || OWNER_PHOTOS[name];
+    const safeKey  = (o.email||name).replace(/[^a-z0-9]/gi,'_');
+    const iniSpan  = `<span style="width:40px;height:40px;border-radius:50%;background:${col};display:${photoUrl?'none':'flex'};align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">${ini}</span>`;
+    const avatar   = photoUrl
+      ? `<img id="oav-${safeKey}" src="${photoUrl}" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.2);object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${iniSpan}`
+      : `<img id="oav-${safeKey}" src="" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:none">${iniSpan}`;
+
+    // Flow bar (compact)
+    const flowBar = FLOW_STEPS.map(({s,col,bg},i)=>{
+      const n = rows.filter(r=>r.s===s).length;
+      return `<div onclick="event.stopPropagation();UI.nf('${s}',null,'${sq}')"
+        style="flex:1;text-align:center;padding:5px 2px;background:${n>0?bg:'#f8fafc'};cursor:pointer;border-right:${i<FLOW_STEPS.length-1?'1px solid var(--border)':'none'};opacity:${n===0?'0.35':'1'}">
+        <div style="font-size:.95rem;font-weight:800;color:${n>0?col:'var(--slate2)'}">${n}</div>
+        <div style="font-size:.55rem;color:var(--slate)">${s}</div>
+      </div>`;
+    }).join('');
+
+    // Top 5 opps
+    const oppList = rows.filter(r=>!['Done','Cancelled'].includes(r.s)).slice(0,5).map(r=>{
+      const safeOppKey=(r.c+'|||'+r.p).replace(/'/g,'__SQ__');
+      return `<div onclick="event.stopPropagation();openPipeDrawer('${safeOppKey}')"
+        style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+        onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
+        ${companyLogoFromName(r.c,14)}
+        <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.c}${r.p?` · <span style="color:var(--slate);font-weight:400">${r.p}</span>`:''}</span>
+        ${prioBadge(r.prio||'Medium')}
+      </div>`;
+    }).join('');
+    const moreActive = rows.filter(r=>!['Done','Cancelled'].includes(r.s)).length;
+    const moreBtn = moreActive > 5 ? `<div onclick="event.stopPropagation();UI.nf('',null,'${sq}')" style="font-size:.7rem;color:var(--blue);cursor:pointer;text-align:center;padding:3px 0">+ ${moreActive-5} more →</div>` : '';
+
+    // Companies (compact)
+    const coList = myComp.slice(0,4).map(c=>{
+      const safeCoId=(c.id||c.name).replace(/'/g,'__SQ__');
+      return `<div onclick="event.stopPropagation();openCompanyDrawer('${safeCoId}')"
+        style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+        onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='#f8fafc'">
+        ${companyLogo(c.website,c.name,14)}
+        <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
+        ${prioBadge(c.prio||'Medium')}
+      </div>`;
+    }).join('') + (myComp.length>4?`<div style="font-size:.7rem;color:var(--blue);cursor:pointer;text-align:center;padding:3px 0" onclick="event.stopPropagation();UI.nav('companies',null)">+ ${myComp.length-4} more →</div>`:'');
+
+    return `
+    <div id="${ownerId}" style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <!-- Collapsed header — click to expand/collapse -->
+      <div onclick="_dashToggleOwner('${ownerId}')"
+        style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,#0f2540 0%,#1a3a5c 100%);cursor:pointer;user-select:none">
+        ${avatar}
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem;color:#fff">${name}</div>
+          <div style="font-size:.68rem;color:rgba(255,255,255,.5);margin-top:1px">${rows.length} opps · ${myComp.length} cos · ${tasks} tasks${ovd>0?` · <span style="color:#fca5a5">${ovd} overdue</span>`:''}</div>
+        </div>
+        <!-- Mini flow badges -->
+        <div style="display:flex;gap:5px;align-items:center">
+          ${FLOW_STEPS.filter(({s})=>rows.filter(r=>r.s===s).length>0).map(({s,col,bg})=>{
+            const n=rows.filter(r=>r.s===s).length;
+            return `<span style="padding:2px 7px;border-radius:10px;font-size:.65rem;font-weight:700;background:rgba(255,255,255,.12);color:#fff">${n} ${s}</span>`;
+          }).join('')}
+        </div>
+        <span id="${ownerId}_caret" style="color:rgba(255,255,255,.5);font-size:.8rem;margin-left:4px">▾</span>
+      </div>
+      <!-- Expandable body — hidden by default -->
+      <div id="${ownerId}_body" style="display:none">
+        <!-- Flow bar -->
+        <div style="display:flex;border-bottom:1px solid var(--border)">${flowBar}</div>
+        <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">⚡ Active Opportunities</div>
+            ${oppList}${moreBtn}
+          </div>
+          <div>
+            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">🏢 Companies</div>
+            ${myComp.length ? coList : '<div style="font-size:.72rem;color:var(--slate2)">None assigned</div>'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
   $('owners-out').innerHTML = `
 
@@ -47,9 +152,13 @@ function renderOwners() {
           const sq   = name.replace(/'/g,'__SQ__');
           const active = DATA_PIPE.filter(r=>r.owner===name&&!['Done','Cancelled'].includes(r.s)).length;
           if (!active) return '';
+          const photoUrl = OWNER_PHOTOS[o.email] || OWNER_PHOTOS[name];
           return `<button onclick="dashExpandOwner('${name}')"
-            style="display:flex;align-items:center;gap:7px;padding:7px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:var(--font)">
-            <span style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex-shrink:0">${ini}</span>
+            style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:var(--font)">
+            ${photoUrl
+              ? `<img src="${photoUrl}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)" onerror="this.style.display='none'">`
+              : `<span style="width:26px;height:26px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex-shrink:0">${ini}</span>`
+            }
             <span style="font-size:.78rem;font-weight:600;color:#fff">${name.split(' ')[0]}</span>
             <span style="font-size:.7rem;color:rgba(255,255,255,.6);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:10px">${active}</span>
           </button>`;
@@ -71,221 +180,10 @@ function renderOwners() {
     <div class="stat-card s-amber clickable" onclick="UI.nav('tasks',null)"><div class="sc-icon">✅</div><div class="sc-val">${openTasks}</div><div class="sc-lbl">Open Tasks</div><div class="sc-sub">${overdue} overdue</div></div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════ -->
-  <!-- OWNER CARDS                                        -->
-  <!-- ══════════════════════════════════════════════════ -->
-  ${DATA_OWNERS.map(o => {
-    const name     = o.displayName || ((o.firstName||'')+' '+(o.lastName||'')).trim();
-    const rows     = DATA_PIPE.filter(r => r.owner === name).sort((a,b)=>{
-      const OPO={'Critical':0,'High':1,'Medium':2,'Low':3};
-      const OSO={'Running':0,'Bidding':1,'Pipeline':2,'Prospect':3,'Done':4,'Cancelled':5};
-      const pd=(OPO[a.prio||'Medium']??2)-(OPO[b.prio||'Medium']??2);
-      if(pd!==0)return pd;
-      const sd=(OSO[a.s]??9)-(OSO[b.s]??9);
-      if(sd!==0)return sd;
-      return(a.c||'').localeCompare(b.c||'');
-    });
-    const col      = OC[name] || '#64748b';
-    const ini      = name.split(' ').map(w=>w[0]).join('');
-    const tasks    = DATA_TASKS.filter(t => t.responsible===name && t.status==='Open').length;
-    const overdue  = DATA_TASKS.filter(t => t.responsible===name && t.status==='Open' && t.dueDate && t.dueDate<today).length;
-    const sq       = name.replace(/'/g,'__SQ__');
-    const CPO2  = {'Critical':0,'High':1,'Medium':2,'Low':3};
-    const coSort = (a,b) => {
-      const pd = (CPO2[a.prio||'Medium']??2)-(CPO2[b.prio||'Medium']??2);
-      return pd !== 0 ? pd : (a.name||'').localeCompare(b.name||'');
-    };
-    const myComp   = DATA_COMPANIES.filter(c => c.owner===name).sort(coSort);
-    const customers    = myComp.filter(c=>c.type==='Customer'||c.type==='Both');
-    const partnerCos   = myComp.filter(c=>c.type==='Partnership'||c.type==='Both');
-    const hrCands  = (DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name);
-    const poolCands= (DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name);
-    // Skip owner entirely if no opps, no companies, no HR candidates, no pool
-    if (!rows.length && !myComp.length && !hrCands.length && !poolCands.length) return '';
 
-    const ownerId  = 'own_' + name.replace(/[^a-z0-9]/gi,'_');
-
-    const FLOW_STEPS = [
-      {s:'Prospect', col:'var(--amber)', bg:'var(--amber-t)', border:'var(--amber-l)'},
-      {s:'Pipeline', col:'var(--blue)',  bg:'var(--blue-t)',  border:'var(--blue-l)'},
-      {s:'Bidding',  col:'var(--purple)',bg:'var(--purple-t)',border:'var(--purple-l)'},
-      {s:'Running',  col:'var(--green)', bg:'var(--green-t)', border:'var(--green-l)'},
-      {s:'Done',     col:'var(--slate2)',bg:'#f1f5f9',        border:'var(--border)'},
-    ];
-    const cancelled = rows.filter(r=>r.s==='Cancelled').length;
-
-    // Company card helper
-    const compCard = (c, accentColor, hoverBg, borderColor) => {
-      const coOpps = DATA_PIPE.filter(r=>r.c===c.name).length;
-      const safeCoId = (c.id||c.name).replace(/'/g,'__SQ__');
-      return `<div onclick="openCompanyDrawer('${safeCoId}')"
-        style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#fff;border-radius:7px;border:1px solid ${borderColor};cursor:pointer;margin-bottom:5px"
-        onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='#fff'">
-        ${companyLogo(c.website,c.name,18)}
-        <span style="font-size:.75rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
-        ${prioBadge(c.prio||'Medium')}
-        ${coOpps>0?`<span style="font-size:.62rem;background:var(--blue-t);color:var(--blue);padding:1px 5px;border-radius:3px;white-space:nowrap;flex-shrink:0">${coOpps}</span>`:''}
-      </div>`;
-    };
-
-    return `
-    <div id="${ownerId}" style="background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)">
-
-      <!-- Owner header -->
-      <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;background:linear-gradient(135deg,#0f2540 0%,#1a3a5c 100%);cursor:pointer" onclick="UI.nf('',null,'${sq}')">
-        ${(()=>{
-          const safeKey = (o.email||'').replace(/[^a-z0-9]/gi,'_');
-          const photoUrl = OWNER_PHOTOS[o.email] || OWNER_PHOTOS[name];
-          const styles = 'width:48px;height:48px;border-radius:50%;flex-shrink:0;border:3px solid rgba(255,255,255,.2);object-fit:cover;cursor:pointer';
-          const iniSpan = `<span style="width:48px;height:48px;border-radius:50%;background:${col};display:${photoUrl?'none':'flex'};align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;border:3px solid rgba(255,255,255,.2)">${ini}</span>`;
-          const imgTag  = photoUrl
-            ? `<img id="oav-${safeKey}" src="${photoUrl}" style="${styles}" alt="${ini}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${iniSpan}`
-            : `<img id="oav-${safeKey}" src="" style="${styles};display:none" alt="${ini}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${iniSpan}`;
-          return imgTag;
-        })()}
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:1rem;color:#fff">${name}</div>
-          <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:1px">${o.email||''}</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <div style="text-align:center;padding:8px 12px;background:rgba(255,255,255,.1);border-radius:10px;border:1px solid rgba(255,255,255,.15)">
-            <div style="font-size:1.3rem;font-weight:700;color:#fff">${rows.length}</div>
-            <div style="font-size:.62rem;color:rgba(255,255,255,.6)">Opportunities</div>
-          </div>
-          <div style="text-align:center;padding:8px 12px;background:rgba(255,255,255,.1);border-radius:10px;border:1px solid rgba(255,255,255,.15);cursor:pointer" onclick="event.stopPropagation();UI.nav('tasks',null);setTimeout(()=>renderTasks('','Open','${sq}'),100)">
-            <div style="font-size:1.3rem;font-weight:700;color:${overdue>0?'#fca5a5':'#fff'}">${tasks}</div>
-            <div style="font-size:.62rem;color:rgba(255,255,255,.6)">${overdue>0?overdue+' overdue':'Tasks'}</div>
-          </div>
-          <div style="text-align:center;padding:8px 12px;background:rgba(255,255,255,.1);border-radius:10px;border:1px solid rgba(255,255,255,.15)">
-            <div style="font-size:.82rem;color:#fff"><span style="font-size:1rem;font-weight:700;color:#6ee7b7">${customers.length}</span> Cos&nbsp;·&nbsp;<span style="font-size:1rem;font-weight:700;color:#f9a8d4">${partnerCos.length}</span> P</div>
-            <div style="font-size:.62rem;color:rgba(255,255,255,.5);margin-top:2px">Companies</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">
-
-        <!-- ── Opportunities ── -->
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">⚡ Opportunities</div>
-            ${rows.length>0?`<button onclick="UI.nf('',null,'${sq}')" style="padding:3px 10px;border:1px solid var(--blue-l);border-radius:5px;background:var(--blue-t);color:var(--blue);font-size:.7rem;font-family:var(--font);cursor:pointer">View all ${rows.length} →</button>`:''}
-          </div>
-          ${rows.length>0?`
-          <!-- Compact flow bar (counts) -->
-          <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-bottom:10px">
-            ${FLOW_STEPS.map(({s,col,bg},i)=>{
-              const n=rows.filter(r=>r.s===s).length;
-              return `<div onclick="UI.nf('${s}',null,'${sq}')" style="flex:1;text-align:center;padding:7px 3px;background:${n>0?bg:'#f8fafc'};cursor:pointer;border-right:${i<FLOW_STEPS.length-1?'1px solid var(--border)':'none'};opacity:${n===0?'0.4':'1'}">
-                <div style="font-size:1.1rem;font-weight:800;color:${n>0?col:'var(--slate2)'}">${n}</div>
-                <div style="font-size:.57rem;color:var(--slate)">${s}</div>
-              </div>`;
-            }).join('')}
-            <div onclick="UI.nf('Cancelled',null,'${sq}')" style="flex:.6;text-align:center;padding:7px 3px;background:${rows.filter(r=>r.s==='Cancelled').length>0?'var(--red-t)':'#f8fafc'};border-left:2px dashed var(--border);cursor:pointer;opacity:${rows.filter(r=>r.s==='Cancelled').length===0?'0.4':'1'}">
-              <div style="font-size:1.1rem;font-weight:800;color:${rows.filter(r=>r.s==='Cancelled').length>0?'var(--red)':'var(--slate2)'}">${rows.filter(r=>r.s==='Cancelled').length}</div>
-              <div style="font-size:.57rem;color:var(--slate)">Cancld</div>
-            </div>
-          </div>
-          <!-- Opportunity list grouped by status — collapsible -->
-          ${(()=>{
-            const SHOW_INITIAL = 5;
-            const allOpps = FLOW_STEPS.concat([{s:'Cancelled',col:'var(--red)',bg:'var(--red-t)'}])
-              .flatMap(({s,col}) => rows.filter(r=>r.s===s).map(r=>({...r,_sc:s,_col:col})));
-            const visibleItems = allOpps.slice(0,SHOW_INITIAL).map(r=>{
-              const safeKey=(r.c+'|||'+r.p).replace(/'/g,'__SQ__');
-              const prevS  = allOpps[allOpps.indexOf(r)-1]?._sc;
-              const header = r._sc !== prevS
-                ? `<div style="display:flex;align-items:center;gap:5px;margin:${allOpps.indexOf(r)===0?'0':'6px'} 0 3px;padding:0 2px">${statusDot(r._sc)}<span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${r._col}">${r._sc}</span><span style="font-size:.6rem;color:var(--slate2)">${rows.filter(x=>x.s===r._sc).length}</span></div>`
-                : '';
-              return header + `<div onclick="openPipeDrawer('${safeKey}')" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
-                ${companyLogoFromName(r.c,16)}
-                <span style="font-size:.74rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.c}${r.p?` · <span style="color:var(--slate);font-weight:400">${r.p}</span>`:''}</span>
-                ${prioBadge(r.prio||'Medium')}
-              </div>`;
-            }).join('');
-            const hiddenItems = allOpps.slice(SHOW_INITIAL).map(r=>{
-              const safeKey=(r.c+'|||'+r.p).replace(/'/g,'__SQ__');
-              const prevS  = allOpps[allOpps.indexOf(r)-1]?._sc;
-              const header = r._sc !== prevS
-                ? `<div style="display:flex;align-items:center;gap:5px;margin:6px 0 3px;padding:0 2px">${statusDot(r._sc)}<span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${r._col}">${r._sc}</span><span style="font-size:.6rem;color:var(--slate2)">${rows.filter(x=>x.s===r._sc).length}</span></div>`
-                : '';
-              return header + `<div onclick="openPipeDrawer('${safeKey}')" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
-                ${companyLogoFromName(r.c,16)}
-                <span style="font-size:.74rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.c}${r.p?` · <span style="color:var(--slate);font-weight:400">${r.p}</span>`:''}</span>
-                ${prioBadge(r.prio||'Medium')}
-              </div>`;
-            }).join('');
-            const moreCount = allOpps.length - SHOW_INITIAL;
-            const moreBtn = moreCount > 0
-              ? `<div id="${ownerId}_opps_more" style="display:none">${hiddenItems}</div>
-                 <button onclick="toggleExpand('${ownerId}_opps_more',this)" style="width:100%;padding:4px;border:1px dashed var(--border);border-radius:6px;background:transparent;color:var(--blue);font-size:.7rem;cursor:pointer;font-family:var(--font);margin-top:4px">+ ${moreCount} more</button>`
-              : '';
-            return `<div>${visibleItems}${moreBtn}</div>`;
-          })()}`
-          :`<div style="padding:12px;text-align:center;color:var(--slate2);font-size:.8rem;background:#f8fafc;border-radius:8px;border:1px solid var(--border)">No opportunities assigned</div>`}
-        </div>
-
-        <!-- ── Companies + Partners (merged) ── -->
-        ${myComp.length>0?`
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">🏢 Companies & Partners</div>
-            <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--blue-t);color:var(--blue)">${myComp.length}</span>
-          </div>
-          <div>
-            ${myComp.slice(0,6).map(c=>compCard(c,'var(--blue)','var(--blue-t)','var(--blue-l)')).join('')}
-          </div>
-          ${myComp.length>6?`
-            <div id="${ownerId}_co_more" style="display:none">
-              ${myComp.slice(6).map(c=>compCard(c,'var(--blue)','var(--blue-t)','var(--blue-l)')).join('')}
-            </div>
-            <button onclick="toggleExpand('${ownerId}_co_more',this)"
-              style="width:100%;margin-top:5px;padding:4px;border:1px dashed var(--blue-l);border-radius:6px;background:transparent;color:var(--blue);font-size:.7rem;cursor:pointer;font-family:var(--font)">
-              + ${myComp.length-6} more
-            </button>`:''}
-        </div>`:''}
-
-        <!-- ── HR Candidates (collapsed) ── -->
-        ${(()=>{
-          const hrCands = (DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name);
-          if(!hrCands.length) return '';
-          const sid = ownerId+'_hr';
-          return `<div>
-            <div onclick="toggleExpandSection('${sid}_body','${sid}_caret')"
-              style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;cursor:pointer">
-              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">👤 HR Candidates</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--purple-t);color:var(--purple)">${hrCands.length}</span>
-                <span id="${sid}_caret" style="font-size:.7rem;color:var(--slate2)">▾</span>
-              </div>
-            </div>
-            <div id="${sid}_body" style="display:none;margin-top:4px">
-              ${hrCands.map(c=>{const safeId=(c.id||'').replace(/'/g,'__SQ__');return `<div onclick="UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeId}'),150)" style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#fff;border-radius:7px;border:1px solid var(--purple-l);cursor:pointer;margin-bottom:3px" onmouseover="this.style.background='var(--purple-t)'" onmouseout="this.style.background='#fff'"><span style="width:22px;height:22px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span><span style="font-size:.75rem;font-weight:500;color:var(--navy2);flex:1">${c.displayName||c.name}</span><span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--purple-t);color:var(--purple)">${c.status}</span>`:''}</div>`;}).join('')}
-            </div>
-          </div>`;
-        })()}
-
-        <!-- ── HR Pool (collapsed) ── -->
-        ${(()=>{
-          const pool = (DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name);
-          if(!pool.length) return '';
-          const sid = ownerId+'_pool';
-          return `<div>
-            <div onclick="toggleExpandSection('${sid}_body','${sid}_caret')"
-              style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;cursor:pointer">
-              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy2)">👥 HR Pool</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--amber-t);color:var(--amber)">${pool.length}</span>
-                <span id="${sid}_caret" style="font-size:.7rem;color:var(--slate2)">▾</span>
-              </div>
-            </div>
-            <div id="${sid}_body" style="display:none;margin-top:4px">
-              ${pool.map(c=>{const safeId=(c.id||'').replace(/'/g,'__SQ__');return `<div onclick="UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeId}'),150)" style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#fff;border-radius:7px;border:1px solid var(--amber-l);cursor:pointer;margin-bottom:3px" onmouseover="this.style.background='var(--amber-t)'" onmouseout="this.style.background='#fff'"><span style="width:22px;height:22px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span><span style="font-size:.75rem;font-weight:500;color:var(--navy2);flex:1">${c.displayName||c.name}</span><span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--amber-t);color:var(--amber)">${c.status}</span>`:''}</div>`;}).join('')}
-            </div>
-          </div>`;
-        })()}      </div>
-    </div>`;
-  }).join('')}`;
+  <!-- OWNER CARDS (collapsed by default) -->
+  <div class="sect" style="margin-top:8px">Owner Overview <small>click header to expand · click name above to expand &amp; scroll</small></div>
+  ${ownerCards}`;
 }
 
 function toggleExpand(id, btn) {
