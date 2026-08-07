@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.19 · 2026-08-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.20 · 2026-08-07 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -151,11 +151,16 @@ function _dashToggleOwner(ownerId) {
 // Expand a specific owner card and scroll to it (called from owners page header buttons)
 function dashExpandOwner(name) {
   const ownerId = 'dow_' + name.replace(/[^a-z0-9]/gi,'_');
-  UI.nav('owners', null); // navigate to 5C Dashboard page
+  UI.nav('owners', document.querySelector('.ni')); // navigate to 5C Dashboard page
   setTimeout(() => {
     const body  = document.getElementById(ownerId + '_body');
     const caret = document.getElementById(ownerId + '_caret');
     const card  = document.getElementById(ownerId);
+    if (body) { body.style.display = 'block'; }
+    if (caret) { caret.textContent = '▴'; }
+    if (card)  { card.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  }, 200);
+}
     if (body) { body.style.display = 'block'; }
     if (caret) { caret.textContent = '▴'; }
     if (card)  { card.scrollIntoView({ behavior:'smooth', block:'start' }); }
