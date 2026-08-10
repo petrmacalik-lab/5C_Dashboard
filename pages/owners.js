@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.21 · 2026-08-07 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.21 · 2026-08-08 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -127,16 +127,72 @@ function renderOwners() {
       </div>
       <!-- Expandable body — hidden by default -->
       <div id="${ownerId}_body" style="display:none">
-        <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="padding:12px 16px;display:flex;flex-direction:column;gap:14px">
+
+          <!-- Active Opportunities -->
           <div>
             <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">⚡ Active Opportunities (${activeRows.length})</div>
             ${activeRows.length ? oppList : '<div style="font-size:.72rem;color:var(--slate2)">None active</div>'}
-            ${evtList}
           </div>
-          <div>
+
+          <!-- Companies -->
+          ${myComp.length ? `<div>
             <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">🏢 Companies (${myComp.length})</div>
-            ${myComp.length ? coList : '<div style="font-size:.72rem;color:var(--slate2)">None assigned</div>'}
-          </div>
+            ${coList}
+          </div>` : ''}
+
+          <!-- Upcoming Events -->
+          ${evtList}
+
+          <!-- Open Tasks -->
+          ${(()=>{
+            const ownerTasks = (DATA_TASKS||[]).filter(t=>t.responsible===name&&t.status==='Open')
+              .sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999'));
+            if(!ownerTasks.length) return '';
+            return `<div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2)">✅ Open Tasks (${ownerTasks.length})</div>
+                <span onclick="event.stopPropagation();UI.nav('tasks',null)" style="font-size:.68rem;color:var(--blue);cursor:pointer">View all →</span>
+              </div>
+              ${ownerTasks.map(t=>{
+                const safeTId=(t.id||'').replace(/'/g,'__SQ__');
+                const isOvd=t.dueDate&&t.dueDate<today2;
+                return `<div onclick="event.stopPropagation();UI.nav('tasks',null);setTimeout(()=>openTaskDrawer('${safeTId}'),150)"
+                  style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+                  onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
+                  <span style="font-size:.72rem">${taskTypeIcon(t.type||'Other')}</span>
+                  <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.taskName||t.type||t.id}</span>
+                  ${t.dueDate?`<span style="font-size:.65rem;${isOvd?'color:var(--red);font-weight:600':'color:var(--slate2)'}">${fmtDate(t.dueDate)}</span>`:''}
+                  ${prioBadge(t.priority||'Medium')}
+                </div>`;
+              }).join('')}
+            </div>`;
+          })()}
+
+          <!-- HR Candidates -->
+          ${(()=>{
+            const hrOwned = [...(DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name),
+                             ...(DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name)];
+            if(!hrOwned.length) return '';
+            return `<div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2)">👤 HR Candidates (${hrOwned.length})</div>
+                <span onclick="event.stopPropagation();UI.nav('hr',null)" style="font-size:.68rem;color:var(--blue);cursor:pointer">View all →</span>
+              </div>
+              ${hrOwned.map(c=>{
+                const safeHrId=(c.id||'').replace(/'/g,'__SQ__');
+                return `<div onclick="event.stopPropagation();UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeHrId}'),150)"
+                  style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+                  onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#f8fafc'">
+                  <span style="width:20px;height:20px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span>
+                  <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.displayName||c.name}</span>
+                  <span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>
+                  ${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--purple-t);color:var(--purple)">${c.status}</span>`:''}
+                </div>`;
+              }).join('')}
+            </div>`;
+          })()}
+
         </div>
       </div>
     </div>`;
