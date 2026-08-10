@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.22 · 2026-08-08 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.23 · 2026-08-08 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -100,12 +100,15 @@ function renderOwners() {
         <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2);margin-bottom:6px">📅 Upcoming Events</div>
         ${upcomingEvts.map(e=>{
           const safeEvId=(e.id||'').replace(/'/g,'__SQ__');
+          const evIcon = e.industry ? industryIcon(e.industry) : '📅';
+          const placeStr = [e.country ? countryFlag(e.country) : '', e.place||''].filter(Boolean).join(' ');
           return `<div onclick="event.stopPropagation();UI.nav('events',null);setTimeout(()=>openEventDrawer('${safeEvId}'),150)"
             style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
             onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
+            <span style="font-size:.85rem;flex-shrink:0">${evIcon}</span>
             <span style="font-size:.68rem;color:var(--slate2);white-space:nowrap;flex-shrink:0">${fmtDate(e.dateFrom)}</span>
             <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name||'—'}</span>
-            ${e.place?`<span style="font-size:.65rem;color:var(--slate2)">${e.place}</span>`:''}
+            ${placeStr?`<span style="font-size:.72rem;color:var(--slate2);white-space:nowrap;flex-shrink:0">${placeStr}</span>`:''}
           </div>`;
         }).join('')}
       </div>` : '';
@@ -164,9 +167,10 @@ function renderOwners() {
                 return `<div onclick="event.stopPropagation();UI.nav('tasks',null);setTimeout(()=>openTaskDrawer('${safeTId}'),150)"
                   style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
                   onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
-                  <span style="font-size:.72rem">${taskTypeIcon(t.type||'Other')}</span>
+                  <span style="font-size:.72rem;flex-shrink:0">${taskTypeIcon(t.type||'Other')}</span>
                   <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.taskName||t.type||t.id}</span>
-                  ${t.dueDate?`<span style="font-size:.65rem;${isOvd?'color:var(--red);font-weight:600':'color:var(--slate2)'}">${fmtDate(t.dueDate)}</span>`:''}
+                  ${t.linkedCompany?`<span style="font-size:.65rem;color:var(--slate2);white-space:nowrap;flex-shrink:0">${companyLogoFromName(t.linkedCompany,12)} ${t.linkedCompany}</span>`:(t.linkedOpp?`<span style="font-size:.65rem;color:var(--slate2);white-space:nowrap;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:100px">🔗 ${t.linkedOpp.split(' · ')[0]}</span>`:'')}
+                  ${t.dueDate?`<span style="font-size:.65rem;${isOvd?'color:var(--red);font-weight:600':'color:var(--slate2)'};white-space:nowrap;flex-shrink:0">${fmtDate(t.dueDate)}</span>`:''}
                   ${prioBadge(t.priority||'Medium')}
                 </div>`;
               }).join('')}
