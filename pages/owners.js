@@ -1,4 +1,4 @@
-// 5C Dashboard v1.40.21 · 2026-08-08 · Five Crafts s.r.o.
+// 5C Dashboard v1.40.22 · 2026-08-08 · Five Crafts s.r.o.
 'use strict';
 
 // ════════════════════════════════════════════════════════════════
@@ -64,11 +64,13 @@ function renderOwners() {
     const activeRows = rows.filter(r=>!['Done','Cancelled'].includes(r.s));
     const oppList = activeRows.map(r=>{
       const safeOppKey=(r.c+'|||'+r.p).replace(/'/g,'__SQ__');
+      const sc={'Running':'var(--green)','Bidding':'var(--purple)','Pipeline':'var(--blue)','Prospect':'var(--amber)'};
       return `<div onclick="event.stopPropagation();openPipeDrawer('${safeOppKey}')"
         style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
         onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#f8fafc'">
         ${companyLogoFromName(r.c,14)}
         <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.c}${r.p?` · <span style="color:var(--slate);font-weight:400">${r.p}</span>`:''}</span>
+        <span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:10px;border:1px solid ${sc[r.s]||'var(--slate2)'};color:${sc[r.s]||'var(--slate2)'};white-space:nowrap;flex-shrink:0">${r.s}</span>
         ${prioBadge(r.prio||'Medium')}
       </div>`;
     }).join('');
@@ -76,11 +78,13 @@ function renderOwners() {
     // All companies (no truncation)
     const coList = myComp.map(c=>{
       const safeCoId=(c.id||c.name).replace(/'/g,'__SQ__');
+      const tc={'Customer':'var(--green)','Partner':'var(--blue)','Partnership':'var(--blue)','Prospect':'var(--amber)','Both':'var(--purple)'};
       return `<div onclick="event.stopPropagation();openCompanyDrawer('${safeCoId}')"
         style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
         onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='#f8fafc'">
         ${companyLogo(c.website,c.name,14)}
         <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
+        ${c.type?`<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:10px;border:1px solid ${tc[c.type]||'var(--slate2)'};color:${tc[c.type]||'var(--slate2)'};white-space:nowrap;flex-shrink:0">${c.type}</span>`:''}
         ${prioBadge(c.prio||'Medium')}
       </div>`;
     }).join('');
@@ -169,27 +173,34 @@ function renderOwners() {
             </div>`;
           })()}
 
-          <!-- HR Candidates -->
+          <!-- HR Candidates (collapsed by default) -->
           ${(()=>{
             const hrOwned = [...(DATA_HR||[]).filter(r=>r.owner===name||r.responsible===name),
                              ...(DATA_POOL||[]).filter(r=>r.owner===name||r.responsible===name)];
             if(!hrOwned.length) return '';
+            const hrId = ownerId+'_hr';
             return `<div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div onclick="event.stopPropagation();toggleExpandSection('${hrId}_body','${hrId}_caret')"
+                style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;cursor:pointer;padding:4px 0;border-top:1px solid var(--border)">
                 <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy2)">👤 HR Candidates (${hrOwned.length})</div>
-                <span onclick="event.stopPropagation();UI.nav('hr',null)" style="font-size:.68rem;color:var(--blue);cursor:pointer">View all →</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span onclick="event.stopPropagation();UI.nav('hr',null)" style="font-size:.68rem;color:var(--blue);cursor:pointer">View all →</span>
+                  <span id="${hrId}_caret" style="font-size:.7rem;color:var(--slate2)">▾</span>
+                </div>
               </div>
-              ${hrOwned.map(c=>{
-                const safeHrId=(c.id||'').replace(/'/g,'__SQ__');
-                return `<div onclick="event.stopPropagation();UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeHrId}'),150)"
-                  style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
-                  onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#f8fafc'">
-                  <span style="width:20px;height:20px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span>
-                  <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.displayName||c.name}</span>
-                  <span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>
-                  ${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--purple-t);color:var(--purple)">${c.status}</span>`:''}
-                </div>`;
-              }).join('')}
+              <div id="${hrId}_body" style="display:none">
+                ${hrOwned.map(c=>{
+                  const safeHrId=(c.id||'').replace(/'/g,'__SQ__');
+                  return `<div onclick="event.stopPropagation();UI.nav('hr',null);setTimeout(()=>openHRDrawer('${safeHrId}'),150)"
+                    style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;background:#f8fafc;border:1px solid var(--border);cursor:pointer;margin-bottom:2px"
+                    onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#f8fafc'">
+                    <span style="width:20px;height:20px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;flex-shrink:0">${(c.displayName||c.name||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()}</span>
+                    <span style="font-size:.72rem;font-weight:500;color:var(--navy2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.displayName||c.name}</span>
+                    <span style="font-size:.65rem;color:var(--slate2)">${c.role||''}</span>
+                    ${c.status?`<span style="font-size:.62rem;padding:1px 5px;border-radius:3px;background:var(--purple-t);color:var(--purple)">${c.status}</span>`:''}
+                  </div>`;
+                }).join('')}
+              </div>
             </div>`;
           })()}
 
